@@ -8,6 +8,7 @@
 
 #import "DLCImagePickerController.h"
 #import "GrayscaleContrastFilter.h"
+#import "MBProgressHUD.h"
 
 #define kStaticBlurSize 2.0f
 
@@ -47,7 +48,7 @@
 - (void)viewDidLoad
 {
     [super viewDidLoad];
-    self.wantsFullScreenLayout = YES;
+//    self.wantsFullScreenLayout = YES;
     //set background color
     self.view.backgroundColor = [UIColor colorWithPatternImage:
                                  [UIImage imageNamed:@"micro_carbon"]];
@@ -62,7 +63,7 @@
     
     staticPictureOriginalOrientation = UIImageOrientationUp;
     
-    self.focusView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"focus-crosshair"]];
+    self.focusView = [[UIImageView alloc] initWithImage:[UIImage imageNamed:@"对焦"]];
 	[self.view addSubview:self.focusView];
 	self.focusView.alpha = 0;
     
@@ -88,7 +89,7 @@
 }
 
 -(void) viewWillAppear:(BOOL)animated {
-    [[UIApplication sharedApplication] setStatusBarHidden:YES withAnimation:UIStatusBarAnimationSlide];
+//    [[UIApplication sharedApplication] setStatusBarHidden:YES withAnimation:UIStatusBarAnimationSlide];
     [super viewWillAppear:animated];
 }
 
@@ -374,8 +375,8 @@
     
     [self prepareFilter];
     [self.retakeButton setHidden:NO];
-    [self.photoCaptureButton setTitle:@"Done" forState:UIControlStateNormal];
-    [self.photoCaptureButton setImage:nil forState:UIControlStateNormal];
+//    [self.photoCaptureButton setTitle:@"Done" forState:UIControlStateNormal];
+//    [self.photoCaptureButton setImage:nil forState:UIControlStateNormal];
     [self.photoCaptureButton setEnabled:YES];
     if(![self.filtersToggleButton isSelected]){
         [self showFilters];
@@ -410,6 +411,7 @@
         NSDictionary *info = [[NSDictionary alloc] initWithObjectsAndKeys:
                               UIImageJPEGRepresentation(currentFilteredVideoFrame, self.outputJPEGQuality), @"data", nil];
         [self.delegate imagePickerController:self didFinishPickingMediaWithInfo:info];
+        self.itemsView.hidden = YES;
     }
 }
 
@@ -477,37 +479,45 @@
 - (IBAction) handleTapToFocus:(UITapGestureRecognizer *)tgr{
 	if (!isStatic && tgr.state == UIGestureRecognizerStateRecognized) {
 		CGPoint location = [tgr locationInView:self.imageView];
-		AVCaptureDevice *device = stillCamera.inputCamera;
-		CGPoint pointOfInterest = CGPointMake(.5f, .5f);
-		CGSize frameSize = [[self imageView] frame].size;
-		if ([stillCamera cameraPosition] == AVCaptureDevicePositionFront) {
-            location.x = frameSize.width - location.x;
-		}
-		pointOfInterest = CGPointMake(location.y / frameSize.height, 1.f - (location.x / frameSize.width));
-		if ([device isFocusPointOfInterestSupported] && [device isFocusModeSupported:AVCaptureFocusModeAutoFocus]) {
-            NSError *error;
-            if ([device lockForConfiguration:&error]) {
-                [device setFocusPointOfInterest:pointOfInterest];
-                
-                [device setFocusMode:AVCaptureFocusModeAutoFocus];
-                
-                if([device isExposurePointOfInterestSupported] && [device isExposureModeSupported:AVCaptureExposureModeContinuousAutoExposure]) {
-                    [device setExposurePointOfInterest:pointOfInterest];
-                    [device setExposureMode:AVCaptureExposureModeContinuousAutoExposure];
+		NSLog(@"location:%@",NSStringFromCGPoint(location));
+        CGSize frameSize = [[self imageView] frame].size;
+        if (location.y< frameSize.height) {
+            AVCaptureDevice *device = stillCamera.inputCamera;
+            CGPoint pointOfInterest = CGPointMake(.5f, .5f);
+            
+            if ([stillCamera cameraPosition] == AVCaptureDevicePositionFront) {
+                location.x = frameSize.width - location.x;
+            }
+            pointOfInterest = CGPointMake(location.y / frameSize.height, 1.f - (location.x / frameSize.width));
+            
+            NSLog(@"focusPoint:%@",NSStringFromCGPoint(pointOfInterest));
+            
+            if ([device isFocusPointOfInterestSupported] && [device isFocusModeSupported:AVCaptureFocusModeAutoFocus]) {
+                NSError *error;
+                if ([device lockForConfiguration:&error]) {
+                    [device setFocusPointOfInterest:pointOfInterest];
+                    
+                    [device setFocusMode:AVCaptureFocusModeAutoFocus];
+                    
+                    if([device isExposurePointOfInterestSupported] && [device isExposureModeSupported:AVCaptureExposureModeContinuousAutoExposure]) {
+                        [device setExposurePointOfInterest:pointOfInterest];
+                        [device setExposureMode:AVCaptureExposureModeContinuousAutoExposure];
+                    }
+                    
+                    self.focusView.center = [tgr locationInView:self.imageView];
+                    self.focusView.alpha = 1;
+                    
+                    [UIView animateWithDuration:0.5 delay:0.5 options:0 animations:^{
+                        self.focusView.alpha = 0;
+                    } completion:nil];
+                    
+                    [device unlockForConfiguration];
+                } else {
+                    NSLog(@"ERROR = %@", error);
                 }
-                
-                self.focusView.center = [tgr locationInView:self.view];
-                self.focusView.alpha = 1;
-                
-                [UIView animateWithDuration:0.5 delay:0.5 options:0 animations:^{
-                    self.focusView.alpha = 0;
-                } completion:nil];
-                
-                [device unlockForConfiguration];
-			} else {
-                NSLog(@"ERROR = %@", error);
-			}
-		}
+            }
+        }
+        
 	}
 }
 
@@ -650,7 +660,7 @@
 - (void)viewWillDisappear:(BOOL)animated {
     [stillCamera stopCameraCapture];
     [super viewWillDisappear:animated];
-    [[UIApplication sharedApplication] setStatusBarHidden:NO withAnimation:NO];
+//    [[UIApplication sharedApplication] setStatusBarHidden:NO withAnimation:NO];
 }
 
 #pragma mark - UIImagePickerDelegate
@@ -699,4 +709,62 @@
 
 #endif
 
+
+
+
+
+- (IBAction)changeItems:(id)sender {
+    UIButton *btn = (UIButton *)sender;
+    for (UIButton *btn_ in [self.itemsView subviews]) {
+        if ([btn_ isKindOfClass:[UIButton class]]) {
+            btn_.userInteractionEnabled = YES;
+            btn_.selected = NO;
+        }
+    }
+    
+    btn.selected = YES;
+    btn.userInteractionEnabled = NO;
+    
+    
+    MBProgressHUD *hud = [MBProgressHUD showHUDAddedTo:self.navigationController.view animated:YES];
+	
+	// Configure for text only and offset down
+	hud.mode = MBProgressHUDModeText;
+    switch (btn.tag) {
+        case 0:
+            hud.labelText = @"风景";
+            break;
+        case 1:
+            hud.labelText = @"人物";
+            break;
+        case 2:
+            hud.labelText = @"美食";
+            break;
+        case 3:
+            hud.labelText = @"娱乐";
+            break;
+        case 4:
+            hud.labelText = @"购物";
+            break;
+        default:
+            break;
+    }
+	
+	hud.margin = 10.f;
+	hud.yOffset = 75.f;
+	hud.removeFromSuperViewOnHide = YES;
+	
+	[hud hide:YES afterDelay:2];
+    
+}
+
+
+
+
+
+
+- (void)viewDidUnload {
+    [self setItemsView:nil];
+    [super viewDidUnload];
+}
 @end

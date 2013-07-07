@@ -48,5 +48,6 @@
 @property (nonatomic, strong) UIImageView *focusView;
 
 @property (nonatomic, assign) CGFloat outputJPEGQuality;
+@property (weak, nonatomic) IBOutlet UIView *itemsView;
 
 @end
